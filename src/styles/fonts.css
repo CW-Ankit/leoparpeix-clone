@@ -1,0 +1,16 @@
+@font-face {
+  font-family: 'text';
+  src: url('/assets/fonts/monumentgrotesk-regular.woff2') format('woff2'),
+       url('/assets/fonts/monumentgrotesk-regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'title';
+  src: url('/assets/fonts/avantt-variable.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
