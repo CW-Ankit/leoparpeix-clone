@@ -21,7 +21,8 @@
       <div class="hero__bottom font-text">
         <div
           class="hero__hint"
-          @mouseenter="store.setCursorText('Feed')"
+          @click="feedBeeFromHint"
+          @mouseenter="store.setCursorText('Feed Bee')"
           @mouseleave="store.setCursorText(null)"
         >
           {{ siteData.home.hero.indication }}
@@ -86,11 +87,8 @@
           </div>
         </div>
 
-        <div
-          class="project-slider"
-          @mouseenter="store.setCursorText('Drag')"
-          @mouseleave="store.setCursorText(null)"
-        >
+        <!-- Draggable Carousel -->
+        <ProjectSlider>
           <div
             v-for="imgIdx in getProjectImageCount(proj.projectKey!)"
             :key="imgIdx"
@@ -100,9 +98,10 @@
               :src="`/assets/medias/home/projects/${proj.projectKey}-webp/1024/${imgIdx}.webp`"
               :alt="`${proj.name} slide ${imgIdx}`"
               loading="lazy"
+              draggable="false"
             />
           </div>
-        </div>
+        </ProjectSlider>
       </section>
     </template>
 
@@ -125,11 +124,8 @@
           </div>
         </div>
 
-        <div
-          class="project-slider"
-          @mouseenter="store.setCursorText('Drag')"
-          @mouseleave="store.setCursorText(null)"
-        >
+        <!-- Draggable Carousel -->
+        <ProjectSlider>
           <div
             v-for="imgIdx in getProjectImageCount(proj.projectKey!)"
             :key="imgIdx"
@@ -139,9 +135,10 @@
               :src="`/assets/medias/home/projects/${proj.projectKey}-webp/1024/${imgIdx}.webp`"
               :alt="`${proj.name} slide ${imgIdx}`"
               loading="lazy"
+              draggable="false"
             />
           </div>
-        </div>
+        </ProjectSlider>
       </section>
     </template>
 
@@ -172,8 +169,7 @@
         v-if="hoveredArchive"
         class="archive-item__preview"
         :style="{
-          left: `${previewPos.x + 20}px`,
-          top: `${previewPos.y - 100}px`
+          transform: `translate3d(${previewPos.x + 30}px, ${previewPos.y - 120}px, 0)`
         }"
       >
         <video
@@ -202,6 +198,7 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import { SITE_DATA, Project, ArchiveItem } from '@/data/siteContent';
 import { useAppStore } from '@/stores/appState';
 import { webglManager } from '@/webgl/WebGLManager';
+import ProjectSlider from '@/components/ProjectSlider.vue';
 import FooterBlock from '@/components/FooterBlock.vue';
 
 const siteData = SITE_DATA;
@@ -238,6 +235,13 @@ function getProjectImageCount(key: string): number {
   return projectCounts[key] || 10;
 }
 
+function feedBeeFromHint(e: MouseEvent) {
+  const hintEl = e.currentTarget as HTMLElement;
+  const rect = hintEl.getBoundingClientRect();
+  // Trigger fruit drop in 3D scene
+  webglManager['topScene']?.spawnFruitAt(rect.left + 50, rect.top);
+}
+
 function openReel() {
   store.openVideo(siteData.home.intro.urlReel);
 }
@@ -248,7 +252,7 @@ const previewPos = reactive({ x: 0, y: 0 });
 
 function onHoverArchive(item: ArchiveItem) {
   hoveredArchive.value = item;
-  store.setCursorText('Open');
+  store.setCursorText('View');
 }
 
 function onLeaveArchive() {
@@ -257,11 +261,16 @@ function onLeaveArchive() {
 }
 
 function openArchiveMedia(item: ArchiveItem) {
-  store.openVideo(item.media.url2);
+  if (item.media.isVideo) {
+    store.openVideo(item.media.url2);
+  }
 }
 
 window.addEventListener('mousemove', (e) => {
   if (hoveredArchive.value) {
+    previewPos.x += (e.clientX - previewPos.x) * 0.25;
+    previewPos.y += (e.clientY - previewPos.y) * 0.25;
+  } else {
     previewPos.x = e.clientX;
     previewPos.y = e.clientY;
   }
@@ -269,6 +278,20 @@ window.addEventListener('mousemove', (e) => {
 </script>
 
 <style scoped>
+.hero__hint {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px dashed currentColor;
+  display: inline-block;
+  cursor: pointer;
+  transition: transform 0.2s, background-color 0.2s;
+}
+
+.hero__hint:hover {
+  transform: scale(1.04);
+  background-color: rgba(8, 61, 42, 0.06);
+}
+
 .agency-link {
   margin-left: 8px;
   text-decoration: underline;
@@ -276,5 +299,27 @@ window.addEventListener('mousemove', (e) => {
 
 .opacity-60 {
   opacity: 0.6;
+}
+
+.archive-item__preview {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 320px;
+  height: 200px;
+  border-radius: 8px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 100;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.22);
+  transition: opacity 0.25s ease;
+}
+
+.archive-item__preview video,
+.archive-item__preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 </style>

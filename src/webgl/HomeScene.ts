@@ -3,26 +3,58 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 export class HomeScene extends THREE.Group {
   private model: THREE.Group | null = null;
+  private bgGradientMesh: THREE.Mesh | null = null;
   private clouds: THREE.Mesh[] = [];
-  private isVisible: boolean = true;
 
   constructor() {
     super();
     this.setupLighting();
+    this.setupBgGradient();
     this.setupClouds();
     this.loadModel();
   }
 
   private setupLighting() {
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
     this.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xfffaed, 2.0);
-    dirLight.position.set(5, 10, 7);
-    this.add(dirLight);
+    const keyLight = new THREE.DirectionalLight(0xfffaed, 2.2);
+    keyLight.position.set(6, 12, 8);
+    keyLight.castShadow = true;
+    this.add(keyLight);
 
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x083d2a, 0.6);
-    this.add(hemiLight);
+    const fillLight = new THREE.DirectionalLight(0xe8f0ee, 0.8);
+    fillLight.position.set(-6, 4, -4);
+    this.add(fillLight);
+  }
+
+  private setupBgGradient() {
+    // Subtle background gradient plane
+    const geo = new THREE.PlaneGeometry(60, 40);
+    const vertShader = `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `;
+    const fragShader = `
+      varying vec2 vUv;
+      void main() {
+        vec3 topColor = vec3(0.92, 0.90, 0.87);     // cream
+        vec3 bottomColor = vec3(0.03, 0.24, 0.16);  // #083D2A
+        vec3 col = mix(bottomColor, topColor, smoothstep(0.1, 0.85, vUv.y));
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `;
+    const mat = new THREE.ShaderMaterial({
+      vertexShader: vertShader,
+      fragmentShader: fragShader,
+      depthWrite: false,
+    });
+    this.bgGradientMesh = new THREE.Mesh(geo, mat);
+    this.bgGradientMesh.position.set(0, 5, -15);
+    this.add(this.bgGradientMesh);
   }
 
   private setupClouds() {
@@ -31,20 +63,20 @@ export class HomeScene extends THREE.Group {
       textureLoader.load(`/assets/textures/global/clouds/cloud${i}.png`)
     );
 
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 6; i++) {
       const tex = cloudTextures[i % cloudTextures.length];
       const mat = new THREE.MeshBasicMaterial({
         map: tex,
         transparent: true,
-        opacity: 0.45,
+        opacity: 0.35,
         depthWrite: false,
       });
 
-      const plane = new THREE.Mesh(new THREE.PlaneGeometry(6, 3), mat);
+      const plane = new THREE.Mesh(new THREE.PlaneGeometry(8, 4), mat);
       plane.position.set(
-        (Math.random() - 0.5) * 15,
-        (Math.random() - 0.5) * 6 + 2,
-        (Math.random() - 0.5) * 8 - 4
+        (Math.random() - 0.5) * 16,
+        (Math.random() - 0.5) * 4 + 4,
+        (Math.random() - 0.5) * 6 - 8
       );
       this.clouds.push(plane);
       this.add(plane);
@@ -57,8 +89,9 @@ export class HomeScene extends THREE.Group {
       '/assets/models/home/scene_v9.glb',
       (gltf) => {
         this.model = gltf.scene;
-        this.model.position.set(0, -1.5, 0);
-        this.model.scale.set(1.2, 1.2, 1.2);
+        // Position architectural studio room directly in view
+        this.model.position.set(0, 0, 0);
+        this.model.scale.set(1.0, 1.0, 1.0);
 
         this.model.traverse((child) => {
           if ((child as THREE.Mesh).isMesh) {
@@ -70,9 +103,7 @@ export class HomeScene extends THREE.Group {
         this.add(this.model);
       },
       undefined,
-      (err) => {
-        console.warn('Home model load warning:', err);
-      }
+      (err) => console.warn('Home model warning:', err)
     );
   }
 
@@ -80,12 +111,12 @@ export class HomeScene extends THREE.Group {
     if (!this.visible) return;
 
     if (this.model) {
-      this.model.rotation.y = Math.sin(time * 0.15) * 0.08 + scrollY * 0.0003;
+      // Very gentle parallax rotation on scroll
+      this.model.rotation.y = scrollY * 0.00015;
     }
 
-    // Drift clouds gently
     this.clouds.forEach((cloud, idx) => {
-      cloud.position.x += Math.sin(time * 0.2 + idx) * 0.003;
+      cloud.position.x += Math.sin(time * 0.15 + idx) * 0.002;
     });
   }
 }

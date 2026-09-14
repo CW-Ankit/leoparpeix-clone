@@ -15,8 +15,18 @@ export class TopScene extends THREE.Scene {
   private raisinTemplate: THREE.Group | null = null;
 
   private activeFruits: FruitEntity[] = [];
-  private targetPosition: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
-  private currentPosition: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
+
+  // Constrained Hero zone coordinates (from original site: xRange: 3, yRange: 0.65, zRange: 1.5, zTarget: 0.3)
+  private heroOrigin: THREE.Vector3 = new THREE.Vector3(1.2, 0.4, 0.3);
+  private currentPos: THREE.Vector3 = new THREE.Vector3(1.2, 0.4, 0.3);
+  private currentVelocity: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
+
+  // Autonomous wandering target
+  private wanderTarget: THREE.Vector3 = new THREE.Vector3(1.2, 0.4, 0.3);
+  private lastWanderChange: number = 0;
+
+  // Active pursue target (fruit)
+  private pursueTarget: THREE.Vector3 | null = null;
 
   private camera: THREE.PerspectiveCamera;
   private width: number;
@@ -34,10 +44,10 @@ export class TopScene extends THREE.Scene {
   }
 
   private setupLighting() {
-    const ambient = new THREE.AmbientLight(0xffffff, 1.8);
+    const ambient = new THREE.AmbientLight(0xffffff, 2.2);
     this.add(ambient);
 
-    const dir = new THREE.DirectionalLight(0xfffaed, 2.5);
+    const dir = new THREE.DirectionalLight(0xfffaed, 3.0);
     dir.position.set(4, 6, 8);
     this.add(dir);
   }
@@ -47,9 +57,9 @@ export class TopScene extends THREE.Scene {
     loader.load('/assets/models/global/bee/bee_v4.glb', (gltf) => {
       this.bee = gltf.scene;
       this.bee.scale.set(0.18, 0.18, 0.18);
-      this.bee.position.set(0, 0, 0);
+      this.bee.position.copy(this.heroOrigin);
 
-      // Find wings for flapping animation
+      // Find wings for rapid flapping animation
       this.bee.traverse((child) => {
         if ((child as THREE.Mesh).isMesh && child.name.toLowerCase().includes('wing')) {
           this.wings.push(child as THREE.Mesh);
@@ -65,31 +75,13 @@ export class TopScene extends THREE.Scene {
 
     loader.load('/assets/models/global/fruits/orange.glb', (gltf) => {
       this.orangeTemplate = gltf.scene;
-      this.orangeTemplate.scale.set(0.14, 0.14, 0.14);
+      this.orangeTemplate.scale.set(0.15, 0.15, 0.15);
     });
 
     loader.load('/assets/models/global/fruits/raisin.glb', (gltf) => {
       this.raisinTemplate = gltf.scene;
-      this.raisinTemplate.scale.set(0.14, 0.14, 0.14);
+      this.raisinTemplate.scale.set(0.15, 0.15, 0.15);
     });
-  }
-
-  public setPointerPosition(clientX: number, clientY: number) {
-    // Project 2D screen coords to 3D world space plane at z = 0
-    const normX = (clientX / this.width) * 2 - 1;
-    const normY = -(clientY / this.height) * 2 + 1;
-
-    const vec = new THREE.Vector3(normX, normY, 0.5);
-    vec.unproject(this.camera);
-    vec.sub(this.camera.position).normalize();
-
-    const distance = -this.camera.position.z / vec.z;
-    const pos = this.camera.position.clone().add(vec.multiplyScalar(distance));
-
-    // Offset slightly so bee hovers near cursor
-    pos.x += 0.3;
-    pos.y += 0.3;
-    this.targetPosition.copy(pos);
   }
 
   public spawnFruitAt(clientX: number, clientY: number) {
@@ -98,7 +90,7 @@ export class TopScene extends THREE.Scene {
 
     const fruit = template.clone();
 
-    // Calculate spawn position in 3D
+    // Convert 2D screen click to 3D world space
     const normX = (clientX / this.width) * 2 - 1;
     const normY = -(clientY / this.height) * 2 + 1;
     const vec = new THREE.Vector3(normX, normY, 0.5);
@@ -112,24 +104,24 @@ export class TopScene extends THREE.Scene {
 
     this.activeFruits.push({
       mesh: fruit,
-      velocity: new THREE.Vector3((Math.random() - 0.5) * 0.02, 0.05, 0),
+      velocity: new THREE.Vector3((Math.random() - 0.5) * 0.02, 0.04, 0),
       isConsumed: false,
     });
   }
 
   public update(time: number, dt: number = 0.016) {
-    // 1. Update Falling Fruits
+    // 1. Falling Fruits Physics & Bee Consumption
     for (let i = this.activeFruits.length - 1; i >= 0; i--) {
       const f = this.activeFruits[i];
-      f.velocity.y -= 0.003; // gravity
+      f.velocity.y -= 0.0035; // gravity
       f.mesh.position.add(f.velocity);
-      f.mesh.rotation.x += 0.04;
-      f.mesh.rotation.y += 0.05;
+      f.mesh.rotation.x += 0.05;
+      f.mesh.rotation.y += 0.06;
 
-      // Bee eating interaction
+      // Bee eating detection
       if (this.bee && !f.isConsumed) {
         const dist = this.bee.position.distanceTo(f.mesh.position);
-        if (dist < 0.6) {
+        if (dist < 0.65) {
           f.isConsumed = true;
           eventBus.emit(EVENTS.FEED_BEE);
 
@@ -139,51 +131,73 @@ export class TopScene extends THREE.Scene {
             this.remove(f.mesh);
             const idx = this.activeFruits.indexOf(f);
             if (idx !== -1) this.activeFruits.splice(idx, 1);
-          }, 50);
+          }, 60);
         }
       }
 
-      // Remove fruits that fall out of view
-      if (f.mesh.position.y < -10) {
+      // Remove fruits falling out of view
+      if (f.mesh.position.y < -8) {
         this.remove(f.mesh);
         this.activeFruits.splice(i, 1);
       }
     }
 
-    // 2. Animate Bee Movement
+    // 2. Autonomous Bee Flight & Fruit Pursuing
     if (this.bee) {
-      // If there's an active fruit, target it!
-      let target = this.targetPosition;
       if (this.activeFruits.length > 0) {
+        // High speed pursuit mode when fruit is present!
         const nearestFruit = this.activeFruits[0];
-        target = nearestFruit.mesh.position;
+        this.pursueTarget = nearestFruit.mesh.position;
+      } else {
+        this.pursueTarget = null;
       }
 
-      // Smooth lerp towards target
-      const lerpFactor = this.activeFruits.length > 0 ? 0.08 : 0.04;
-      this.currentPosition.lerp(target, lerpFactor);
+      if (this.pursueTarget) {
+        // Fly directly toward the fruit
+        const toFruit = this.pursueTarget.clone().sub(this.currentPos);
+        this.currentVelocity.lerp(toFruit.multiplyScalar(0.12), 0.15);
+      } else {
+        // Natural gentle hovering within the Hero range:
+        // Update wander target every ~2.5 seconds
+        if (time - this.lastWanderChange > 2.5) {
+          this.lastWanderChange = time;
+          this.wanderTarget.set(
+            this.heroOrigin.x + (Math.random() - 0.5) * 2.5,
+            this.heroOrigin.y + (Math.random() - 0.5) * 0.8,
+            this.heroOrigin.z + (Math.random() - 0.5) * 0.8
+          );
+        }
 
-      // Idle float offset
-      const hoverY = Math.sin(time * 3.5) * 0.08;
-      const hoverX = Math.cos(time * 2.2) * 0.05;
+        // Steer towards wander target
+        const steer = this.wanderTarget.clone().sub(this.currentPos);
+        this.currentVelocity.lerp(steer.multiplyScalar(0.025), 0.06);
+      }
+
+      this.currentPos.add(this.currentVelocity);
+
+      // Micro hover flutter
+      const flutterY = Math.sin(time * 5.0) * 0.035;
+      const flutterX = Math.cos(time * 3.5) * 0.02;
 
       this.bee.position.set(
-        this.currentPosition.x + hoverX,
-        this.currentPosition.y + hoverY,
-        this.currentPosition.z
+        this.currentPos.x + flutterX,
+        this.currentPos.y + flutterY,
+        this.currentPos.z
       );
 
-      // Banking angle based on horizontal movement
-      const diffX = target.x - this.bee.position.x;
-      const diffY = target.y - this.bee.position.y;
-      this.bee.rotation.z = -diffX * 0.35;
-      this.bee.rotation.y = diffX * 0.45;
-      this.bee.rotation.x = -diffY * 0.25;
+      // Banking rotation based on flight direction and speed
+      const targetRotZ = -this.currentVelocity.x * 2.5;
+      const targetRotY = this.currentVelocity.x * 3.0;
+      const targetRotX = -this.currentVelocity.y * 2.0;
 
-      // Flutter wings rapidly
+      this.bee.rotation.z = THREE.MathUtils.lerp(this.bee.rotation.z, targetRotZ, 0.1);
+      this.bee.rotation.y = THREE.MathUtils.lerp(this.bee.rotation.y, targetRotY, 0.1);
+      this.bee.rotation.x = THREE.MathUtils.lerp(this.bee.rotation.x, targetRotX, 0.1);
+
+      // Flap wings rapidly
       this.wings.forEach((wing, idx) => {
         const sign = idx % 2 === 0 ? 1 : -1;
-        wing.rotation.z = Math.sin(time * 38) * 0.45 * sign;
+        wing.rotation.z = Math.sin(time * 42) * 0.5 * sign;
       });
     }
   }

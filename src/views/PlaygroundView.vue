@@ -28,6 +28,7 @@
             loop
             muted
             playsinline
+            preload="metadata"
           ></video>
           <img
             v-else
@@ -64,9 +65,7 @@ onMounted(() => {
 });
 
 function openMedia(item: PlaygroundItem) {
-  if (item.type === 'video') {
-    store.openVideo(item.src);
-  }
+  store.openVideo(item.src);
 }
 </script>
 

@@ -14,18 +14,18 @@ export class AboutScene extends THREE.Group {
   }
 
   private setupLighting() {
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.6);
     this.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffe8d6, 2.2);
-    dirLight.position.set(-6, 12, 8);
+    const dirLight = new THREE.DirectionalLight(0xfffaed, 2.4);
+    dirLight.position.set(-32, 10, 18);
     this.add(dirLight);
   }
 
   private setupMountainBackground() {
     const texLoader = new THREE.TextureLoader();
     texLoader.load('/assets/textures/about/scene/texMontagne.png', (texture) => {
-      const geo = new THREE.PlaneGeometry(24, 12);
+      const geo = new THREE.PlaneGeometry(35, 18);
       const mat = new THREE.MeshBasicMaterial({
         map: texture,
         transparent: true,
@@ -33,7 +33,7 @@ export class AboutScene extends THREE.Group {
         depthWrite: false,
       });
       this.mountainMesh = new THREE.Mesh(geo, mat);
-      this.mountainMesh.position.set(0, 2, -10);
+      this.mountainMesh.position.set(0, 3, -16);
       this.add(this.mountainMesh);
     });
   }
@@ -46,12 +46,12 @@ export class AboutScene extends THREE.Group {
       '/assets/models/about/scene_v15.glb',
       (gltf) => {
         this.model = gltf.scene;
-        this.model.position.set(0, -2, 0);
-        this.model.scale.set(1.1, 1.1, 1.1);
+        this.model.position.set(0, 0, 0);
+        this.model.scale.set(1.0, 1.0, 1.0);
         this.add(this.model);
       },
       undefined,
-      (err) => console.warn('About scene load warning:', err)
+      (err) => console.warn('About scene warning:', err)
     );
 
     // Flower
@@ -59,12 +59,12 @@ export class AboutScene extends THREE.Group {
       '/assets/models/global/flower/flower_v2.glb',
       (gltf) => {
         this.flower = gltf.scene;
-        this.flower.position.set(1.5, 0, 1);
-        this.flower.scale.set(0.6, 0.6, 0.6);
+        this.flower.position.set(1.2, 0.2, 2.0);
+        this.flower.scale.set(0.7, 0.7, 0.7);
         this.add(this.flower);
       },
       undefined,
-      (err) => console.warn('Flower load warning:', err)
+      (err) => console.warn('Flower warning:', err)
     );
   }
 
@@ -72,12 +72,11 @@ export class AboutScene extends THREE.Group {
     if (!this.visible) return;
 
     if (this.flower) {
-      this.flower.rotation.y = Math.sin(time * 0.4) * 0.2;
-      this.flower.rotation.z = Math.cos(time * 0.3) * 0.1;
+      this.flower.rotation.y = Math.sin(time * 0.3) * 0.15;
     }
 
     if (this.mountainMesh) {
-      this.mountainMesh.position.y = 2 + scrollY * 0.0004;
+      this.mountainMesh.position.y = 3 + scrollY * 0.0003;
     }
   }
 }

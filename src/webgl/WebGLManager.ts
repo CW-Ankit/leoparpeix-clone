@@ -37,6 +37,7 @@ export class WebGLManager {
   private mouseTarget: THREE.Vector2 = new THREE.Vector2(0, 0);
   private mouseCurrent: THREE.Vector2 = new THREE.Vector2(0, 0);
   private scrollY: number = 0;
+  private maxScroll: number = 1;
   private activeRoute: string = 'home';
   private clock: THREE.Clock = new THREE.Clock();
   private isRunning: boolean = false;
@@ -79,8 +80,10 @@ export class WebGLManager {
     // Camera Rig: modelCameraGroup -> mouseMoveCameraGroup -> perspectiveCamera
     this.modelCameraGroup = new THREE.Group();
     this.mouseMoveCameraGroup = new THREE.Group();
-    this.perspectiveCamera = new THREE.PerspectiveCamera(45, this.width / this.height, 0.1, 100);
-    this.perspectiveCamera.position.set(0, 0, 7.5);
+
+    // Authentic FOV and Camera position from leoparpeix.com
+    this.perspectiveCamera = new THREE.PerspectiveCamera(40, this.width / this.height, 0.1, 150);
+    this.perspectiveCamera.position.set(0, 2.4, 4.0);
 
     this.mouseMoveCameraGroup.add(this.perspectiveCamera);
     this.modelCameraGroup.add(this.mouseMoveCameraGroup);
@@ -109,8 +112,8 @@ export class WebGLManager {
     this.topRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.topCanvasContainer.appendChild(this.topRenderer.domElement);
 
-    this.topCamera = new THREE.PerspectiveCamera(45, this.width / this.height, 0.1, 100);
-    this.topCamera.position.set(0, 0, 8);
+    this.topCamera = new THREE.PerspectiveCamera(40, this.width / this.height, 0.1, 100);
+    this.topCamera.position.set(0, 0, 7);
 
     this.topScene = new TopScene(this.topCamera, this.width, this.height);
   }
@@ -119,28 +122,27 @@ export class WebGLManager {
     window.addEventListener('resize', () => this.onResize());
 
     window.addEventListener('pointermove', (e: MouseEvent) => {
-      // Mouse Parallax Targets [-1, 1]
       this.mouseTarget.x = (e.clientX / this.width) * 2 - 1;
       this.mouseTarget.y = -(e.clientY / this.height) * 2 + 1;
 
-      // Pass to TopScene (Bee tracker)
-      this.topScene?.setPointerPosition(e.clientX, e.clientY);
-
-      // Pass to Fluid Simulation
+      // Feed kinetic disturbance to Fluid Simulation
       this.fluidSimulation?.onPointerMove(e.clientX, e.clientY);
     });
 
-    // Click anywhere spawns fruit for the bee!
+    // Click in hero section or on "(Click to feed the bee)" feeds the bee
     window.addEventListener('click', (e: MouseEvent) => {
-      // Don't spawn if clicking links, buttons, or video player
       const target = e.target as HTMLElement;
-      if (target.closest('a, button, input, .video-modal, .navbar-block')) return;
+      if (target.closest('a, button, input, .video-modal, .navbar-block, .project-slider')) return;
 
-      this.topScene?.spawnFruitAt(e.clientX, e.clientY);
+      // Only spawn fruit in top/hero zone
+      if (e.clientY < window.innerHeight * 0.9) {
+        this.topScene?.spawnFruitAt(e.clientX, e.clientY);
+      }
     });
 
     eventBus.on(EVENTS.SCROLL, (e: any) => {
       this.scrollY = e.animatedScroll ?? window.scrollY;
+      this.maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
     });
   }
 
@@ -149,6 +151,14 @@ export class WebGLManager {
     if (this.homeScene && this.aboutScene) {
       this.homeScene.visible = route === 'home';
       this.aboutScene.visible = route === 'about';
+
+      if (route === 'about') {
+        this.perspectiveCamera.position.set(0, 1.89, 6.9);
+        this.perspectiveCamera.rotation.set(-0.1, 0, 0);
+      } else {
+        this.perspectiveCamera.position.set(0, 2.4, 4.0);
+        this.perspectiveCamera.rotation.set(0, 0, 0);
+      }
     }
   }
 
@@ -185,20 +195,23 @@ export class WebGLManager {
     const dt = this.clock.getDelta();
     const elapsedTime = this.clock.getElapsedTime();
 
-    // 1. Smooth mouse parallax lerp
+    // 1. Subtle mouse parallax lerp
     this.mouseCurrent.lerp(this.mouseTarget, 0.05);
-    this.mouseMoveCameraGroup.position.x = this.mouseCurrent.x * 0.4;
-    this.mouseMoveCameraGroup.position.y = this.mouseCurrent.y * 0.3;
-    this.mouseMoveCameraGroup.rotation.y = -this.mouseCurrent.x * 0.04;
-    this.mouseMoveCameraGroup.rotation.x = this.mouseCurrent.y * 0.04;
+    this.mouseMoveCameraGroup.position.x = this.mouseCurrent.x * 0.25;
+    this.mouseMoveCameraGroup.position.y = this.mouseCurrent.y * 0.15;
+    this.mouseMoveCameraGroup.rotation.y = -this.mouseCurrent.x * 0.02;
+    this.mouseMoveCameraGroup.rotation.x = this.mouseCurrent.y * 0.02;
 
-    // 2. Scroll Camera Motion
-    const targetCamY = -this.scrollY * 0.0018;
-    this.modelCameraGroup.position.y = THREE.MathUtils.lerp(
-      this.modelCameraGroup.position.y,
-      targetCamY,
-      0.08
-    );
+    // 2. Scroll-based Camera Rig Interpolation
+    const scrollRatio = Math.min(1, Math.max(0, this.scrollY / this.maxScroll));
+
+    if (this.activeRoute === 'home') {
+      // Moves seamlessly through the room as the user scrolls
+      const targetY = 2.4 - scrollRatio * 3.2;
+      const targetZ = 4.0 - scrollRatio * 2.8;
+      this.modelCameraGroup.position.y = THREE.MathUtils.lerp(this.modelCameraGroup.position.y, targetY, 0.06);
+      this.modelCameraGroup.position.z = THREE.MathUtils.lerp(this.modelCameraGroup.position.z, targetZ, 0.06);
+    }
 
     // 3. Update Scene Animations
     this.homeScene?.update(elapsedTime, this.scrollY);
@@ -215,7 +228,7 @@ export class WebGLManager {
     // 6. Post-process with Fluid Distortion to Screen
     this.postProcessing.render(this.fluidSimulation.velocityTexture);
 
-    // 7. Render Top Overlay (Interactive Bee & Fruits)
+    // 7. Render Top Overlay (Interactive Bee & Fruits in Hero)
     this.topRenderer.render(this.topScene, this.topCamera);
   };
 }
