@@ -16,13 +16,13 @@ export class TopScene extends THREE.Scene {
 
   private activeFruits: FruitEntity[] = [];
 
-  // Constrained Hero zone coordinates (from original site: xRange: 3, yRange: 0.65, zRange: 1.5, zTarget: 0.3)
-  private heroOrigin: THREE.Vector3 = new THREE.Vector3(1.2, 0.4, 0.3);
-  private currentPos: THREE.Vector3 = new THREE.Vector3(1.2, 0.4, 0.3);
+  // Hero zone origin coordinates
+  private heroOrigin: THREE.Vector3 = new THREE.Vector3(1.4, 0.2, 0.4);
+  private currentPos: THREE.Vector3 = new THREE.Vector3(1.4, 0.2, 0.4);
   private currentVelocity: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
 
-  // Autonomous wandering target
-  private wanderTarget: THREE.Vector3 = new THREE.Vector3(1.2, 0.4, 0.3);
+  // Autonomous wandering
+  private wanderTarget: THREE.Vector3 = new THREE.Vector3(1.4, 0.2, 0.4);
   private lastWanderChange: number = 0;
 
   // Active pursue target (fruit)
@@ -44,11 +44,11 @@ export class TopScene extends THREE.Scene {
   }
 
   private setupLighting() {
-    const ambient = new THREE.AmbientLight(0xffffff, 2.2);
+    const ambient = new THREE.AmbientLight(0xffffff, 2.4);
     this.add(ambient);
 
-    const dir = new THREE.DirectionalLight(0xfffaed, 3.0);
-    dir.position.set(4, 6, 8);
+    const dir = new THREE.DirectionalLight(0xfffaed, 3.2);
+    dir.position.set(4, 8, 8);
     this.add(dir);
   }
 
@@ -56,13 +56,18 @@ export class TopScene extends THREE.Scene {
     const loader = new GLTFLoader();
     loader.load('/assets/models/global/bee/bee_v4.glb', (gltf) => {
       this.bee = gltf.scene;
-      this.bee.scale.set(0.18, 0.18, 0.18);
+
+      // Authentic scale: 0.92 (prominent, highly visible, matching leoparpeix.com)
+      this.bee.scale.set(0.92, 0.92, 0.92);
       this.bee.position.copy(this.heroOrigin);
 
       // Find wings for rapid flapping animation
       this.bee.traverse((child) => {
-        if ((child as THREE.Mesh).isMesh && child.name.toLowerCase().includes('wing')) {
-          this.wings.push(child as THREE.Mesh);
+        if ((child as THREE.Mesh).isMesh) {
+          child.castShadow = true;
+          if (child.name.toLowerCase().includes('wing')) {
+            this.wings.push(child as THREE.Mesh);
+          }
         }
       });
 
@@ -75,12 +80,13 @@ export class TopScene extends THREE.Scene {
 
     loader.load('/assets/models/global/fruits/orange.glb', (gltf) => {
       this.orangeTemplate = gltf.scene;
-      this.orangeTemplate.scale.set(0.15, 0.15, 0.15);
+      // Proportional fruit scale
+      this.orangeTemplate.scale.set(0.65, 0.65, 0.65);
     });
 
     loader.load('/assets/models/global/fruits/raisin.glb', (gltf) => {
       this.raisinTemplate = gltf.scene;
-      this.raisinTemplate.scale.set(0.15, 0.15, 0.15);
+      this.raisinTemplate.scale.set(0.65, 0.65, 0.65);
     });
   }
 
@@ -90,7 +96,7 @@ export class TopScene extends THREE.Scene {
 
     const fruit = template.clone();
 
-    // Convert 2D screen click to 3D world space
+    // Convert screen coordinates to 3D world plane
     const normX = (clientX / this.width) * 2 - 1;
     const normY = -(clientY / this.height) * 2 + 1;
     const vec = new THREE.Vector3(normX, normY, 0.5);
@@ -104,7 +110,7 @@ export class TopScene extends THREE.Scene {
 
     this.activeFruits.push({
       mesh: fruit,
-      velocity: new THREE.Vector3((Math.random() - 0.5) * 0.02, 0.04, 0),
+      velocity: new THREE.Vector3((Math.random() - 0.5) * 0.02, 0.035, 0),
       isConsumed: false,
     });
   }
@@ -115,13 +121,13 @@ export class TopScene extends THREE.Scene {
       const f = this.activeFruits[i];
       f.velocity.y -= 0.0035; // gravity
       f.mesh.position.add(f.velocity);
-      f.mesh.rotation.x += 0.05;
-      f.mesh.rotation.y += 0.06;
+      f.mesh.rotation.x += 0.04;
+      f.mesh.rotation.y += 0.05;
 
-      // Bee eating detection
+      // Bee eating detection (scaled to 1.1 distance)
       if (this.bee && !f.isConsumed) {
         const dist = this.bee.position.distanceTo(f.mesh.position);
-        if (dist < 0.65) {
+        if (dist < 1.1) {
           f.isConsumed = true;
           eventBus.emit(EVENTS.FEED_BEE);
 
@@ -135,7 +141,7 @@ export class TopScene extends THREE.Scene {
         }
       }
 
-      // Remove fruits falling out of view
+      // Remove fruits that fall out of screen
       if (f.mesh.position.y < -8) {
         this.remove(f.mesh);
         this.activeFruits.splice(i, 1);
@@ -145,7 +151,7 @@ export class TopScene extends THREE.Scene {
     // 2. Autonomous Bee Flight & Fruit Pursuing
     if (this.bee) {
       if (this.activeFruits.length > 0) {
-        // High speed pursuit mode when fruit is present!
+        // Pursuit mode when fruit is spawned
         const nearestFruit = this.activeFruits[0];
         this.pursueTarget = nearestFruit.mesh.position;
       } else {
@@ -153,22 +159,19 @@ export class TopScene extends THREE.Scene {
       }
 
       if (this.pursueTarget) {
-        // Fly directly toward the fruit
         const toFruit = this.pursueTarget.clone().sub(this.currentPos);
         this.currentVelocity.lerp(toFruit.multiplyScalar(0.12), 0.15);
       } else {
-        // Natural gentle hovering within the Hero range:
-        // Update wander target every ~2.5 seconds
+        // Natural gentle wandering in Hero zone
         if (time - this.lastWanderChange > 2.5) {
           this.lastWanderChange = time;
           this.wanderTarget.set(
-            this.heroOrigin.x + (Math.random() - 0.5) * 2.5,
-            this.heroOrigin.y + (Math.random() - 0.5) * 0.8,
-            this.heroOrigin.z + (Math.random() - 0.5) * 0.8
+            this.heroOrigin.x + (Math.random() - 0.5) * 2.2,
+            this.heroOrigin.y + (Math.random() - 0.5) * 0.7,
+            this.heroOrigin.z + (Math.random() - 0.5) * 0.7
           );
         }
 
-        // Steer towards wander target
         const steer = this.wanderTarget.clone().sub(this.currentPos);
         this.currentVelocity.lerp(steer.multiplyScalar(0.025), 0.06);
       }
@@ -176,8 +179,8 @@ export class TopScene extends THREE.Scene {
       this.currentPos.add(this.currentVelocity);
 
       // Micro hover flutter
-      const flutterY = Math.sin(time * 5.0) * 0.035;
-      const flutterX = Math.cos(time * 3.5) * 0.02;
+      const flutterY = Math.sin(time * 4.5) * 0.05;
+      const flutterX = Math.cos(time * 3.2) * 0.03;
 
       this.bee.position.set(
         this.currentPos.x + flutterX,
@@ -185,19 +188,19 @@ export class TopScene extends THREE.Scene {
         this.currentPos.z
       );
 
-      // Banking rotation based on flight direction and speed
-      const targetRotZ = -this.currentVelocity.x * 2.5;
-      const targetRotY = this.currentVelocity.x * 3.0;
-      const targetRotX = -this.currentVelocity.y * 2.0;
+      // Natural banking rotations
+      const targetRotZ = -this.currentVelocity.x * 2.2;
+      const targetRotY = this.currentVelocity.x * 2.8;
+      const targetRotX = -this.currentVelocity.y * 1.8;
 
       this.bee.rotation.z = THREE.MathUtils.lerp(this.bee.rotation.z, targetRotZ, 0.1);
       this.bee.rotation.y = THREE.MathUtils.lerp(this.bee.rotation.y, targetRotY, 0.1);
       this.bee.rotation.x = THREE.MathUtils.lerp(this.bee.rotation.x, targetRotX, 0.1);
 
-      // Flap wings rapidly
+      // Rapid wing flutter
       this.wings.forEach((wing, idx) => {
         const sign = idx % 2 === 0 ? 1 : -1;
-        wing.rotation.z = Math.sin(time * 42) * 0.5 * sign;
+        wing.rotation.z = Math.sin(time * 40) * 0.55 * sign;
       });
     }
   }

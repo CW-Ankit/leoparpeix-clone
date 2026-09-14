@@ -83,50 +83,7 @@ button {
   cursor: pointer;
 }
 
-/* Custom Cursor Follower */
-.custom-cursor {
-  position: fixed;
-  top: 0;
-  left: 0;
-  pointer-events: none;
-  z-index: 9999;
-  transform: translate(-50%, -50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: opacity 0.2s ease;
-}
 
-.custom-cursor__dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background-color: var(--color-green);
-  transition: transform 0.25s var(--ease-out-expo), width 0.25s, height 0.25s, background-color 0.25s;
-}
-
-.custom-cursor.is-expanded .custom-cursor__dot {
-  width: 90px;
-  height: 90px;
-  background-color: var(--color-green);
-  color: #fff;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 8px;
-}
-
-.custom-cursor__label {
-  font-size: 11px;
-  font-family: var(--font-text);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #fff;
-  pointer-events: none;
-  white-space: nowrap;
-}
 
 /* Navbar */
 .navbar-block {
