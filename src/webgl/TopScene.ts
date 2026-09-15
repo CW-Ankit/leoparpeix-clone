@@ -38,9 +38,38 @@ export class TopScene extends THREE.Scene {
     this.width = width;
     this.height = height;
 
+    this.updateHeroOrigin();
+    this.currentPos.copy(this.heroOrigin);
+    this.wanderTarget.copy(this.heroOrigin);
+
     this.setupLighting();
     this.loadBee();
     this.loadFruitTemplates();
+  }
+
+  private updateHeroOrigin() {
+    const aspect = this.width / Math.max(1, this.height);
+    // Visible half-width at z=0 for 40 deg FOV at distance 7:
+    const visibleHalfWidth = 2.547 * aspect;
+
+    if (aspect < 0.85) {
+      // Mobile portrait: position in upper center area
+      this.heroOrigin.set(
+        Math.min(0.35, visibleHalfWidth * 0.35),
+        0.55,
+        0.4
+      );
+    } else if (aspect < 1.2) {
+      // Tablet portrait/square:
+      this.heroOrigin.set(
+        Math.min(0.85, visibleHalfWidth * 0.5),
+        0.35,
+        0.4
+      );
+    } else {
+      // Desktop landscape:
+      this.heroOrigin.set(1.4, 0.2, 0.4);
+    }
   }
 
   private setupLighting() {
@@ -165,10 +194,12 @@ export class TopScene extends THREE.Scene {
         // Natural gentle wandering in Hero zone
         if (time - this.lastWanderChange > 2.5) {
           this.lastWanderChange = time;
+          const aspect = this.width / Math.max(1, this.height);
+          const spreadX = Math.min(2.0, Math.max(0.6, 2.0 * aspect));
           this.wanderTarget.set(
-            this.heroOrigin.x + (Math.random() - 0.5) * 2.2,
-            this.heroOrigin.y + (Math.random() - 0.5) * 0.7,
-            this.heroOrigin.z + (Math.random() - 0.5) * 0.7
+            this.heroOrigin.x + (Math.random() - 0.5) * spreadX,
+            this.heroOrigin.y + (Math.random() - 0.5) * 0.6,
+            this.heroOrigin.z + (Math.random() - 0.5) * 0.6
           );
         }
 
@@ -208,5 +239,6 @@ export class TopScene extends THREE.Scene {
   public resize(width: number, height: number) {
     this.width = width;
     this.height = height;
+    this.updateHeroOrigin();
   }
 }

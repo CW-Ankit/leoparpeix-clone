@@ -44,9 +44,14 @@ let rafId: number;
 
 function updateBounds() {
   if (!containerRef.value || !trackRef.value) return;
+  const style = window.getComputedStyle(containerRef.value);
+  const padLeft = parseFloat(style.paddingLeft) || 20;
+  const padRight = parseFloat(style.paddingRight) || 20;
   const containerWidth = containerRef.value.clientWidth;
   const trackWidth = trackRef.value.scrollWidth;
-  minX = Math.min(0, containerWidth - trackWidth - 80);
+  minX = Math.min(0, containerWidth - trackWidth - (padLeft + padRight));
+  if (targetX < minX) targetX = minX;
+  if (targetX > maxX) targetX = maxX;
 }
 
 function onPointerDown(e: PointerEvent) {
@@ -165,5 +170,14 @@ onUnmounted(() => {
   gap: 24px;
   width: max-content;
   will-change: transform;
+}
+
+@media (max-width: 768px) {
+  .drag-slider-container {
+    padding: 16px 20px;
+  }
+  .drag-slider-track {
+    gap: 16px;
+  }
 }
 </style>

@@ -136,13 +136,32 @@ function openMedia(item: PlaygroundItem) {
 }
 
 @media (max-width: 900px) {
-  .playground-hero, .playground-grid {
+  .playground-hero {
+    padding: calc(110px + env(safe-area-inset-top, 0px)) 24px 40px;
+  }
+
+  .playground-hero__title {
+    font-size: clamp(36px, 8.5vw, 80px);
+  }
+
+  .playground-grid {
+    padding: 20px 24px 80px;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+    gap: 24px;
+  }
+}
+
+@media (max-width: 600px) {
+  .playground-hero {
     padding-left: 20px;
     padding-right: 20px;
   }
+
   .playground-grid {
+    padding-left: 20px;
+    padding-right: 20px;
     grid-template-columns: 1fr;
-    gap: 30px;
+    gap: 28px;
   }
 }
 </style>

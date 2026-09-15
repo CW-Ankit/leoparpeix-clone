@@ -23,7 +23,11 @@ import { smoothScroll } from '@/services/SmoothScroll';
 import { soundController } from '@/services/SoundController';
 
 onMounted(() => {
-  document.body.classList.add('has-custom-cursor');
+  // Only enable custom cursor mode on fine-pointer devices (desktop mice/trackpads)
+  const isFinePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  if (isFinePointer) {
+    document.body.classList.add('has-custom-cursor');
+  }
 
   const mainCanvas = document.getElementById('canvas-app');
   const topCanvas = document.getElementById('canvas-top-app');

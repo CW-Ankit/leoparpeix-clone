@@ -196,7 +196,53 @@ onMounted(() => {
 @media (max-width: 900px) {
   .experience-section {
     grid-template-columns: 1fr;
-    gap: 40px;
+    gap: 48px;
+    padding: 60px 20px;
+  }
+
+  .about-content-section {
+    padding: 60px 20px 80px;
+    gap: 36px;
+  }
+}
+
+@media (max-width: 640px) {
+  .table-row {
+    grid-template-columns: 1fr auto;
+    gap: 4px 12px;
+    padding: 14px 0;
+  }
+
+  .table-row span:nth-child(1) {
+    grid-column: 1 / 2;
+  }
+
+  .table-row span:nth-child(2) {
+    grid-column: 1 / 2;
+    font-size: 13px;
+    opacity: 0.8;
+  }
+
+  .table-row span:nth-child(3) {
+    grid-column: 2 / 3;
+    grid-row: 1 / 3;
+    align-self: center;
+    font-size: 13px;
+  }
+
+  .award-item {
+    padding: 14px 0;
+    font-size: 14px;
+  }
+
+  .block-title {
+    font-size: 28px;
+    margin-bottom: 20px;
+  }
+
+  .about-content__quote {
+    font-size: clamp(20px, 5.5vw, 32px);
+    line-height: 1.3;
   }
 }
 </style>

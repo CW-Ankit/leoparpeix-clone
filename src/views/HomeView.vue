@@ -322,4 +322,10 @@ window.addEventListener('mousemove', (e) => {
   object-fit: cover;
   display: block;
 }
+
+@media (hover: none), (pointer: coarse) {
+  .archive-item__preview {
+    display: none !important;
+  }
+}
 </style>
