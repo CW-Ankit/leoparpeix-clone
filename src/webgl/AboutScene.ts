@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { getSharedGLTFLoader } from './GLTFLoaderHelper';
 
 export class AboutScene extends THREE.Group {
   private model: THREE.Group | null = null;
@@ -39,7 +39,7 @@ export class AboutScene extends THREE.Group {
   }
 
   private loadModels() {
-    const loader = new GLTFLoader();
+    const loader = getSharedGLTFLoader();
 
     // Main about landscape
     loader.load(

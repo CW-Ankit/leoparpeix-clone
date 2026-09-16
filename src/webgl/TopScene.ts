@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { getSharedGLTFLoader } from './GLTFLoaderHelper';
 import { eventBus, EVENTS } from '../services/EventBus';
 
 interface FruitEntity {
@@ -82,7 +82,7 @@ export class TopScene extends THREE.Scene {
   }
 
   private loadBee() {
-    const loader = new GLTFLoader();
+    const loader = getSharedGLTFLoader();
     loader.load('/assets/models/global/bee/bee_v4.glb', (gltf) => {
       this.bee = gltf.scene;
 
@@ -105,7 +105,7 @@ export class TopScene extends THREE.Scene {
   }
 
   private loadFruitTemplates() {
-    const loader = new GLTFLoader();
+    const loader = getSharedGLTFLoader();
 
     loader.load('/assets/models/global/fruits/orange.glb', (gltf) => {
       this.orangeTemplate = gltf.scene;

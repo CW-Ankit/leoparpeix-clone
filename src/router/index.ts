@@ -1,9 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import HomeView from '@/views/HomeView.vue';
-import AboutView from '@/views/AboutView.vue';
-import PlaygroundView from '@/views/PlaygroundView.vue';
 import { eventBus, EVENTS } from '@/services/EventBus';
 import { smoothScroll } from '@/services/SmoothScroll';
+
+// Route-level code-splitting: separate bundle chunks for each page
+const HomeView = () => import('@/views/HomeView.vue');
+const AboutView = () => import('@/views/AboutView.vue');
+const PlaygroundView = () => import('@/views/PlaygroundView.vue');
 
 const router = createRouter({
   history: createWebHistory(),

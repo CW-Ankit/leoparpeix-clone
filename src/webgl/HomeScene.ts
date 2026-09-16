@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { getSharedGLTFLoader } from './GLTFLoaderHelper';
 
 export class HomeScene extends THREE.Group {
   private model: THREE.Group | null = null;
@@ -84,7 +84,7 @@ export class HomeScene extends THREE.Group {
   }
 
   private loadModel() {
-    const loader = new GLTFLoader();
+    const loader = getSharedGLTFLoader();
     loader.load(
       '/assets/models/home/scene_v9.glb',
       (gltf) => {
